@@ -62,6 +62,12 @@ func (t TypeLine) IsPlaneswalker() bool {
 	return strings.Contains(string(t), "Planeswalker")
 }
 
+// IsBasicLand returns true if the type line indicates a basic land.
+func (t TypeLine) IsBasicLand() bool {
+	s := string(t)
+	return strings.Contains(s, "Basic Land") || strings.Contains(s, "Basic Snow Land")
+}
+
 // OracleText represents a card's rules text.
 type OracleText string
 

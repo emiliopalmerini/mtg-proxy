@@ -62,6 +62,12 @@ func (r *Renderer) Render(cards []card.DeckCard, outputPath string) error {
 	for i, c := range expanded {
 		if i%cardsPerPage == 0 {
 			p.AddPage()
+			remaining := len(expanded) - i
+			cardsOnPage := remaining
+			if cardsOnPage > cardsPerPage {
+				cardsOnPage = cardsPerPage
+			}
+			drawGrid(p, cardsOnPage)
 		}
 
 		pos := i % cardsPerPage
@@ -87,14 +93,46 @@ func expandDeck(cards []card.DeckCard) []card.Card {
 	return expanded
 }
 
-func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
-	// Dashed card border (saves ink)
-	p.SetDrawColor(128, 128, 128)
+func drawGrid(p *fpdf.Fpdf, cardCount int) {
+	p.SetDrawColor(0, 0, 0)
 	p.SetLineWidth(0.2)
-	p.SetDashPattern([]float64{1.5, 1.0}, 0)
-	p.Rect(x, y, cardW, cardH, "D")
-	p.SetDashPattern([]float64{}, 0)
+	p.SetDashPattern([]float64{0.3, 1.5}, 0)
 
+	usedRows := (cardCount + cols - 1) / cols
+
+	// Horizontal lines
+	for r := 0; r <= usedRows; r++ {
+		y := marginY + float64(r)*cardH
+		colsInRow := cols
+		if r == usedRows {
+			// last row: only draw as wide as the cards in the previous row
+			lastRowCards := cardCount - (usedRows-1)*cols
+			colsInRow = lastRowCards
+		}
+		if r < usedRows {
+			colsInRow = cols
+		}
+		p.Line(marginX, y, marginX+float64(colsInRow)*cardW, y)
+	}
+
+	// Vertical lines
+	for r := 0; r < usedRows; r++ {
+		cardsInRow := cols
+		if r == usedRows-1 {
+			cardsInRow = cardCount - r*cols
+		}
+		for c := 0; c <= cardsInRow; c++ {
+			x := marginX + float64(c)*cardW
+			yTop := marginY + float64(r)*cardH
+			yBot := yTop + cardH
+			p.Line(x, yTop, x, yBot)
+		}
+	}
+
+	p.SetDashPattern([]float64{}, 0)
+}
+
+func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
 	innerX := x + padding
 	innerW := cardW - 2*padding
 	cursorY := y + padding
@@ -118,7 +156,9 @@ func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
 	// Separator
 	p.SetDrawColor(0, 0, 0)
 	p.SetLineWidth(0.1)
+	p.SetDashPattern([]float64{0.3, 1.5}, 0)
 	p.Line(innerX, cursorY, x+cardW-padding, cursorY)
+	p.SetDashPattern([]float64{}, 0)
 	cursorY += 1
 
 	// Type line
@@ -128,7 +168,9 @@ func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
 	cursorY += 4.5
 
 	// Separator
+	p.SetDashPattern([]float64{0.3, 1.5}, 0)
 	p.Line(innerX, cursorY, x+cardW-padding, cursorY)
+	p.SetDashPattern([]float64{}, 0)
 	cursorY += 1
 
 	// Oracle text - clip to available height

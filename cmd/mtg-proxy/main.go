@@ -13,8 +13,10 @@ const scryfallBaseURL = "https://api.scryfall.com"
 
 func main() {
 	var inputPath, outputPath string
+	var skipBasics bool
 	flag.StringVar(&inputPath, "i", "", "path to decklist file (required)")
 	flag.StringVar(&outputPath, "o", "proxies.pdf", "path to output PDF")
+	flag.BoolVar(&skipBasics, "skip-basics", false, "skip basic lands")
 	flag.Parse()
 
 	if inputPath == "" {
@@ -48,6 +50,10 @@ func main() {
 		c, err := fetcher.FetchCard(entry.Name)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: skipping %q: %v\n", entry.Name, err)
+			continue
+		}
+		if skipBasics && c.TypeLine.IsBasicLand() {
+			fmt.Fprintf(os.Stderr, "skipping basic land: %s\n", c.Name)
 			continue
 		}
 		deckCards = append(deckCards, card.DeckCard{Card: c, Quantity: entry.Quantity})
