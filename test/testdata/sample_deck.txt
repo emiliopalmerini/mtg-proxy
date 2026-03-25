@@ -1,0 +1,7 @@
+# Sample decklist for testing
+4 Lightning Bolt
+2 Counterspell
+1 Tarmogoyf
+
+// Sideboard
+1 Jace, the Mind Sculptor
