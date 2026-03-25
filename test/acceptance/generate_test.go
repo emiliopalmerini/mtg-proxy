@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/epalmerini/mtg-proxy/internal/app"
 	"github.com/epalmerini/mtg-proxy/internal/card"
 )
 
@@ -89,7 +90,7 @@ func TestGenerateFullPipeline(t *testing.T) {
 	}
 
 	// Step 1: Parse decklist
-	parser := card.NewDecklistParser()
+	parser := app.NewDecklistParser()
 	entries, err := parser.Parse(string(content))
 	if err != nil {
 		t.Fatalf("failed to parse decklist: %v", err)
@@ -118,7 +119,7 @@ func TestGenerateFullPipeline(t *testing.T) {
 	}
 
 	// Step 2: Fetch cards from mock Scryfall
-	fetcher := card.NewCardFetcher(server.URL)
+	fetcher := app.NewCardFetcher(server.URL)
 	var deckCards []card.DeckCard
 	for _, entry := range entries {
 		c, err := fetcher.FetchCard(entry.Name)
@@ -160,7 +161,7 @@ func TestGenerateFullPipeline(t *testing.T) {
 	outputDir := t.TempDir()
 	outputPath := filepath.Join(outputDir, "proxies.pdf")
 
-	renderer := card.NewDeckRenderer()
+	renderer := app.NewDeckRenderer()
 	err = renderer.Render(deckCards, outputPath)
 	if err != nil {
 		t.Fatalf("failed to render PDF: %v", err)
@@ -191,7 +192,7 @@ func TestGenerateWithUnknownCard(t *testing.T) {
 
 	decklist := "4 Lightning Bolt\n1 Nonexistent Card\n2 Counterspell\n"
 
-	parser := card.NewDecklistParser()
+	parser := app.NewDecklistParser()
 	entries, err := parser.Parse(decklist)
 	if err != nil {
 		t.Fatalf("failed to parse decklist: %v", err)
@@ -202,7 +203,7 @@ func TestGenerateWithUnknownCard(t *testing.T) {
 	}
 
 	// Unknown card should return an error from fetcher
-	fetcher := card.NewCardFetcher(server.URL)
+	fetcher := app.NewCardFetcher(server.URL)
 	_, err = fetcher.FetchCard(entries[1].Name)
 	if err == nil {
 		t.Fatal("expected error for unknown card, got nil")
@@ -215,13 +216,13 @@ func TestGenerateCorrectCardCount(t *testing.T) {
 
 	decklist := "4 Lightning Bolt\n2 Counterspell\n"
 
-	parser := card.NewDecklistParser()
+	parser := app.NewDecklistParser()
 	entries, err := parser.Parse(decklist)
 	if err != nil {
 		t.Fatalf("failed to parse decklist: %v", err)
 	}
 
-	fetcher := card.NewCardFetcher(server.URL)
+	fetcher := app.NewCardFetcher(server.URL)
 	var deckCards []card.DeckCard
 	for _, entry := range entries {
 		c, err := fetcher.FetchCard(entry.Name)
@@ -243,7 +244,7 @@ func TestGenerateCorrectCardCount(t *testing.T) {
 	outputDir := t.TempDir()
 	outputPath := filepath.Join(outputDir, "proxies.pdf")
 
-	renderer := card.NewDeckRenderer()
+	renderer := app.NewDeckRenderer()
 	err = renderer.Render(deckCards, outputPath)
 	if err != nil {
 		t.Fatalf("failed to render PDF: %v", err)
@@ -265,13 +266,13 @@ func TestGenerateMultiplePages(t *testing.T) {
 	// 10 cards total = 2 pages (9 per page)
 	decklist := "10 Lightning Bolt\n"
 
-	parser := card.NewDecklistParser()
+	parser := app.NewDecklistParser()
 	entries, err := parser.Parse(decklist)
 	if err != nil {
 		t.Fatalf("failed to parse decklist: %v", err)
 	}
 
-	fetcher := card.NewCardFetcher(server.URL)
+	fetcher := app.NewCardFetcher(server.URL)
 	var deckCards []card.DeckCard
 	for _, entry := range entries {
 		c, err := fetcher.FetchCard(entry.Name)
@@ -284,7 +285,7 @@ func TestGenerateMultiplePages(t *testing.T) {
 	outputDir := t.TempDir()
 	outputPath := filepath.Join(outputDir, "proxies.pdf")
 
-	renderer := card.NewDeckRenderer()
+	renderer := app.NewDeckRenderer()
 	err = renderer.Render(deckCards, outputPath)
 	if err != nil {
 		t.Fatalf("failed to render: %v", err)
@@ -301,7 +302,7 @@ func TestGenerateMultiplePages(t *testing.T) {
 }
 
 func TestGenerateEmptyDecklist(t *testing.T) {
-	parser := card.NewDecklistParser()
+	parser := app.NewDecklistParser()
 
 	// Empty or comment-only decklist should return no entries
 	entries, err := parser.Parse("# just a comment\n\n// another comment\n")
@@ -313,7 +314,7 @@ func TestGenerateEmptyDecklist(t *testing.T) {
 	}
 
 	// Rendering empty deck should not error
-	renderer := card.NewDeckRenderer()
+	renderer := app.NewDeckRenderer()
 	outputDir := t.TempDir()
 	outputPath := filepath.Join(outputDir, "empty.pdf")
 	err = renderer.Render(nil, outputPath)
