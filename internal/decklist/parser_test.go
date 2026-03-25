@@ -103,6 +103,60 @@ func TestParseReturnsErrorForNegativeQuantity(t *testing.T) {
 	}
 }
 
+func TestParseRichFormat(t *testing.T) {
+	input := "1x Ankh of Mishra (6ed) 273 [Slug]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	assertEntries(t, entries, []card.DeckEntry{
+		{Name: "Ankh of Mishra", Quantity: 1, SetCode: "6ed", CollectorNumber: "273"},
+	})
+}
+
+func TestParseRichFormatMultipleEntries(t *testing.T) {
+	input := "1x Ankh of Mishra (6ed) 273 [Slug]\n4 Lightning Bolt\n1x Athreos, God of Passage (plst) JOU-146 [Protection,Creature]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	assertEntries(t, entries, []card.DeckEntry{
+		{Name: "Ankh of Mishra", Quantity: 1, SetCode: "6ed", CollectorNumber: "273"},
+		{Name: "Lightning Bolt", Quantity: 4},
+		{Name: "Athreos, God of Passage", Quantity: 1, SetCode: "plst", CollectorNumber: "JOU-146"},
+	})
+}
+
+func TestParseRichFormatSplitCard(t *testing.T) {
+	input := "1x Boggart Trawler // Boggart Bog (mh3) 243 [Land,Creature,Stax]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	assertEntries(t, entries, []card.DeckEntry{
+		{Name: "Boggart Trawler // Boggart Bog", Quantity: 1, SetCode: "mh3", CollectorNumber: "243"},
+	})
+}
+
+func TestParseRichFormatLargeQuantity(t *testing.T) {
+	input := "12x Plains (ecl) 274 [Land]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	assertEntries(t, entries, []card.DeckEntry{
+		{Name: "Plains", Quantity: 12, SetCode: "ecl", CollectorNumber: "274"},
+	})
+}
+
 func assertEntries(t *testing.T, got, want []card.DeckEntry) {
 	t.Helper()
 	if len(got) != len(want) {
@@ -114,6 +168,12 @@ func assertEntries(t *testing.T, got, want []card.DeckEntry) {
 		}
 		if got[i].Quantity != want[i].Quantity {
 			t.Errorf("[%d] quantity: got %d, want %d", i, got[i].Quantity, want[i].Quantity)
+		}
+		if got[i].SetCode != want[i].SetCode {
+			t.Errorf("[%d] set: got %q, want %q", i, got[i].SetCode, want[i].SetCode)
+		}
+		if got[i].CollectorNumber != want[i].CollectorNumber {
+			t.Errorf("[%d] collector: got %q, want %q", i, got[i].CollectorNumber, want[i].CollectorNumber)
 		}
 	}
 }

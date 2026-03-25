@@ -122,7 +122,7 @@ func TestGenerateFullPipeline(t *testing.T) {
 	fetcher := app.NewCardFetcher(server.URL)
 	var deckCards []card.DeckCard
 	for _, entry := range entries {
-		c, err := fetcher.FetchCard(entry.Name)
+		c, err := fetcher.FetchCard(entry)
 		if err != nil {
 			t.Fatalf("failed to fetch card %q: %v", entry.Name, err)
 		}
@@ -204,7 +204,7 @@ func TestGenerateWithUnknownCard(t *testing.T) {
 
 	// Unknown card should return an error from fetcher
 	fetcher := app.NewCardFetcher(server.URL)
-	_, err = fetcher.FetchCard(entries[1].Name)
+	_, err = fetcher.FetchCard(entries[1])
 	if err == nil {
 		t.Fatal("expected error for unknown card, got nil")
 	}
@@ -225,7 +225,7 @@ func TestGenerateCorrectCardCount(t *testing.T) {
 	fetcher := app.NewCardFetcher(server.URL)
 	var deckCards []card.DeckCard
 	for _, entry := range entries {
-		c, err := fetcher.FetchCard(entry.Name)
+		c, err := fetcher.FetchCard(entry)
 		if err != nil {
 			t.Fatalf("failed to fetch card %q: %v", entry.Name, err)
 		}
@@ -275,7 +275,7 @@ func TestGenerateMultiplePages(t *testing.T) {
 	fetcher := app.NewCardFetcher(server.URL)
 	var deckCards []card.DeckCard
 	for _, entry := range entries {
-		c, err := fetcher.FetchCard(entry.Name)
+		c, err := fetcher.FetchCard(entry)
 		if err != nil {
 			t.Fatalf("failed to fetch: %v", err)
 		}

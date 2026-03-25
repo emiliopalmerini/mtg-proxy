@@ -91,6 +91,18 @@ func (l Loyalty) String() string { return string(l) }
 // Quantity represents a card count in a decklist.
 type Quantity int
 
+// SetCode represents a card's set code (e.g., "6ed", "mh3").
+type SetCode string
+
+func (s SetCode) String() string { return string(s) }
+func (s SetCode) IsEmpty() bool  { return s == "" }
+
+// CollectorNumber represents a card's collector number within a set.
+type CollectorNumber string
+
+func (c CollectorNumber) String() string { return string(c) }
+func (c CollectorNumber) IsEmpty() bool  { return c == "" }
+
 // Card represents a Magic: The Gathering card with its relevant fields.
 type Card struct {
 	Name       CardName
@@ -103,8 +115,10 @@ type Card struct {
 
 // DeckEntry represents a card entry in a decklist with its quantity.
 type DeckEntry struct {
-	Name     CardName
-	Quantity Quantity
+	Name            CardName
+	Quantity        Quantity
+	SetCode         SetCode
+	CollectorNumber CollectorNumber
 }
 
 // DeckCard combines a resolved card with its quantity in the deck.
@@ -113,9 +127,9 @@ type DeckCard struct {
 	Quantity Quantity
 }
 
-// CardFetcher retrieves card data by name.
+// CardFetcher retrieves card data. Uses set+collector when available, falls back to name.
 type CardFetcher interface {
-	FetchCard(name CardName) (Card, error)
+	FetchCard(entry DeckEntry) (Card, error)
 }
 
 // DeckRenderer renders a list of deck cards to an output file.

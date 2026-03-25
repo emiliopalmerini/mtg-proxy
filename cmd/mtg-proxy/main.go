@@ -47,7 +47,7 @@ func main() {
 	var deckCards []card.DeckCard
 	for _, entry := range entries {
 		fmt.Fprintf(os.Stderr, "fetching %s...\n", entry.Name)
-		c, err := fetcher.FetchCard(entry.Name)
+		c, err := fetcher.FetchCard(entry)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: skipping %q: %v\n", entry.Name, err)
 			continue
