@@ -8,11 +8,9 @@ import (
 )
 
 const (
-	// A4 dimensions in mm
 	pageW = 210.0
 	pageH = 297.0
 
-	// Standard MTG card size in mm
 	cardW = 63.0
 	cardH = 88.0
 
@@ -21,14 +19,11 @@ const (
 
 	cardsPerPage = cols * rows
 
-	// Margins to center the 3x3 grid on A4
 	marginX = (pageW - cols*cardW) / 2
 	marginY = (pageH - rows*cardH) / 2
 
-	// Internal card padding
-	padding = 2.0
-
-	fontFamily = "Helvetica"
+	padding  = 2.0
+	fontName = "dejavu"
 )
 
 // Renderer generates a printable PDF of proxy cards.
@@ -38,7 +33,6 @@ type Renderer struct {
 
 type Option func(*Renderer)
 
-// WithCompression enables or disables PDF stream compression.
 func WithCompression(on bool) Option {
 	return func(r *Renderer) { r.compress = on }
 }
@@ -52,19 +46,22 @@ func NewRenderer(opts ...Option) *Renderer {
 }
 
 func (r *Renderer) Render(cards []card.DeckCard, outputPath string) error {
-	pdf := fpdf.New("P", "mm", "A4", "")
-	pdf.SetCompression(r.compress)
-	pdf.SetAutoPageBreak(false, 0)
+	p := fpdf.New("P", "mm", "A4", "")
+	p.SetCompression(r.compress)
+	p.SetAutoPageBreak(false, 0)
+
+	p.AddUTF8FontFromBytes(fontName, "", dejaVuRegular)
+	p.AddUTF8FontFromBytes(fontName, "B", dejaVuBold)
 
 	expanded := expandDeck(cards)
 
 	if len(expanded) == 0 {
-		pdf.AddPage()
+		p.AddPage()
 	}
 
 	for i, c := range expanded {
 		if i%cardsPerPage == 0 {
-			pdf.AddPage()
+			p.AddPage()
 		}
 
 		pos := i % cardsPerPage
@@ -74,10 +71,10 @@ func (r *Renderer) Render(cards []card.DeckCard, outputPath string) error {
 		x := marginX + float64(col)*cardW
 		y := marginY + float64(row)*cardH
 
-		renderCard(pdf, c, x, y)
+		renderCard(p, c, x, y)
 	}
 
-	return pdf.OutputFileAndClose(outputPath)
+	return p.OutputFileAndClose(outputPath)
 }
 
 func expandDeck(cards []card.DeckCard) []card.Card {
@@ -90,70 +87,73 @@ func expandDeck(cards []card.DeckCard) []card.Card {
 	return expanded
 }
 
-func renderCard(pdf *fpdf.Fpdf, c card.Card, x, y float64) {
-	// Card border
-	pdf.SetDrawColor(0, 0, 0)
-	pdf.SetLineWidth(0.3)
-	pdf.Rect(x, y, cardW, cardH, "D")
+func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
+	// Dashed card border (saves ink)
+	p.SetDrawColor(128, 128, 128)
+	p.SetLineWidth(0.2)
+	p.SetDashPattern([]float64{1.5, 1.0}, 0)
+	p.Rect(x, y, cardW, cardH, "D")
+	p.SetDashPattern([]float64{}, 0)
 
 	innerX := x + padding
 	innerW := cardW - 2*padding
 	cursorY := y + padding
 
 	// Header: Name (left) + Mana cost (right)
-	pdf.SetFont(fontFamily, "B", 7)
-	pdf.SetXY(innerX, cursorY)
+	p.SetFont(fontName, "B", 7)
+	p.SetXY(innerX, cursorY)
 
 	manaCost := c.ManaCost.String()
 	nameW := innerW
 	if manaCost != "" {
-		costW := pdf.GetStringWidth(manaCost) + 1
+		costW := p.GetStringWidth(manaCost) + 1
 		nameW = innerW - costW
-		pdf.CellFormat(nameW, 4, string(c.Name), "", 0, "L", false, 0, "")
-		pdf.CellFormat(costW, 4, manaCost, "", 0, "R", false, 0, "")
+		p.CellFormat(nameW, 4, string(c.Name), "", 0, "L", false, 0, "")
+		p.CellFormat(costW, 4, manaCost, "", 0, "R", false, 0, "")
 	} else {
-		pdf.CellFormat(nameW, 4, string(c.Name), "", 0, "L", false, 0, "")
+		p.CellFormat(nameW, 4, string(c.Name), "", 0, "L", false, 0, "")
 	}
 	cursorY += 5
 
-	// Separator line
-	pdf.SetLineWidth(0.1)
-	pdf.Line(innerX, cursorY, x+cardW-padding, cursorY)
+	// Separator
+	p.SetDrawColor(0, 0, 0)
+	p.SetLineWidth(0.1)
+	p.Line(innerX, cursorY, x+cardW-padding, cursorY)
 	cursorY += 1
 
 	// Type line
-	pdf.SetFont(fontFamily, "", 6)
-	pdf.SetXY(innerX, cursorY)
-	pdf.CellFormat(innerW, 3.5, string(c.TypeLine), "", 0, "L", false, 0, "")
+	p.SetFont(fontName, "", 6)
+	p.SetXY(innerX, cursorY)
+	p.CellFormat(innerW, 3.5, string(c.TypeLine), "", 0, "L", false, 0, "")
 	cursorY += 4.5
 
-	// Separator line
-	pdf.Line(innerX, cursorY, x+cardW-padding, cursorY)
+	// Separator
+	p.Line(innerX, cursorY, x+cardW-padding, cursorY)
 	cursorY += 1
 
-	// Oracle text
-	pdf.SetFont(fontFamily, "", 5.5)
-	pdf.SetXY(innerX, cursorY)
-
-	oracleMaxH := y + cardH - padding - cursorY
+	// Oracle text - clip to available height
+	footerH := 0.0
 	if c.Stats != nil || c.Loyalty != nil {
-		oracleMaxH -= 5
+		footerH = 5.0
 	}
+	oracleMaxY := y + cardH - padding - footerH
 
-	// Use MultiCell for word-wrapped oracle text
-	pdf.MultiCell(innerW, 3, string(c.OracleText), "", "L", false)
-	cursorY += oracleMaxH
+	p.SetFont(fontName, "", 5.5)
+	p.ClipRect(innerX, cursorY, innerW, oracleMaxY-cursorY, false)
+	p.SetXY(innerX, cursorY)
+	p.MultiCell(innerW, 3, string(c.OracleText), "", "L", false)
+	p.ClipEnd()
 
 	// Footer: Stats or Loyalty
 	if c.Stats != nil {
 		footer := fmt.Sprintf("%s/%s", c.Stats.Power, c.Stats.Toughness)
-		pdf.SetFont(fontFamily, "B", 7)
-		pdf.SetXY(innerX, y+cardH-padding-4)
-		pdf.CellFormat(innerW, 4, footer, "", 0, "R", false, 0, "")
+		p.SetFont(fontName, "B", 7)
+		p.SetXY(innerX, y+cardH-padding-4)
+		p.CellFormat(innerW, 4, footer, "", 0, "R", false, 0, "")
 	} else if c.Loyalty != nil {
 		footer := fmt.Sprintf("Loyalty: %s", *c.Loyalty)
-		pdf.SetFont(fontFamily, "B", 7)
-		pdf.SetXY(innerX, y+cardH-padding-4)
-		pdf.CellFormat(innerW, 4, footer, "", 0, "R", false, 0, "")
+		p.SetFont(fontName, "B", 7)
+		p.SetXY(innerX, y+cardH-padding-4)
+		p.CellFormat(innerW, 4, footer, "", 0, "R", false, 0, "")
 	}
 }
