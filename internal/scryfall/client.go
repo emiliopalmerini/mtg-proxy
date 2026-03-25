@@ -37,7 +37,14 @@ func NewClient(baseURL string) *Client {
 func (c *Client) FetchCard(name card.CardName) (card.Card, error) {
 	reqURL := fmt.Sprintf("%s/cards/named?exact=%s", c.baseURL, url.QueryEscape(string(name)))
 
-	resp, err := c.httpClient.Get(reqURL)
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return card.Card{}, fmt.Errorf("building request for %q: %w", name, err)
+	}
+	req.Header.Set("User-Agent", "mtg-proxy/1.0")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return card.Card{}, fmt.Errorf("fetching card %q: %w", name, err)
 	}

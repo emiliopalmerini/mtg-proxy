@@ -160,10 +160,12 @@ func TestFetchNotFound(t *testing.T) {
 	}
 }
 
-func TestFetchSendsExactQueryParam(t *testing.T) {
+func TestFetchSendsCorrectRequest(t *testing.T) {
 	var receivedPath string
+	var receivedHeaders http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedPath = r.URL.RequestURI()
+		receivedHeaders = r.Header
 		json.NewEncoder(w).Encode(scryfallResponse{
 			Object: "card", Name: "Lightning Bolt", ManaCost: "{R}", TypeLine: "Instant",
 		})
@@ -176,6 +178,12 @@ func TestFetchSendsExactQueryParam(t *testing.T) {
 	expected := "/cards/named?exact=Lightning+Bolt"
 	if receivedPath != expected {
 		t.Errorf("request path: got %q, want %q", receivedPath, expected)
+	}
+	if ua := receivedHeaders.Get("User-Agent"); ua != "mtg-proxy/1.0" {
+		t.Errorf("User-Agent: got %q, want %q", ua, "mtg-proxy/1.0")
+	}
+	if accept := receivedHeaders.Get("Accept"); accept != "application/json" {
+		t.Errorf("Accept: got %q, want %q", accept, "application/json")
 	}
 }
 
