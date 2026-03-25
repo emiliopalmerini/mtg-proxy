@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/epalmerini/mtg-proxy/internal/scryfall"
 )
@@ -213,5 +214,34 @@ func TestFetchLand(t *testing.T) {
 	}
 	if c.Loyalty != nil {
 		t.Errorf("loyalty: expected nil for land")
+	}
+}
+
+func TestFetchThrottlesRequests(t *testing.T) {
+	server := newTestServer(t, map[string]scryfallResponse{
+		"Lightning Bolt": {
+			Object: "card", Name: "Lightning Bolt", ManaCost: "{R}", TypeLine: "Instant",
+		},
+	})
+	defer server.Close()
+
+	client := scryfall.NewClient(server.URL)
+
+	// First request should be immediate
+	start := time.Now()
+	client.FetchCard("Lightning Bolt")
+	firstDuration := time.Since(start)
+
+	// Second request should be throttled (~100ms delay)
+	start = time.Now()
+	client.FetchCard("Lightning Bolt")
+	secondDuration := time.Since(start)
+
+	if secondDuration < 80*time.Millisecond {
+		t.Errorf("second request was too fast (%v), expected >= 80ms throttle", secondDuration)
+	}
+	// First request should be fast (no throttle needed)
+	if firstDuration > 50*time.Millisecond {
+		t.Errorf("first request was unexpectedly slow (%v)", firstDuration)
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
+	"time"
 
 	"github.com/epalmerini/mtg-proxy/internal/card"
 )
@@ -21,10 +23,14 @@ type apiResponse struct {
 	Details    string  `json:"details,omitempty"`
 }
 
+const requestDelay = 100 * time.Millisecond
+
 // Client fetches card data from the Scryfall API.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
+	mu         sync.Mutex
+	lastReq    time.Time
 }
 
 func NewClient(baseURL string) *Client {
@@ -34,7 +40,17 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
+func (c *Client) throttle() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if elapsed := time.Since(c.lastReq); elapsed < requestDelay {
+		time.Sleep(requestDelay - elapsed)
+	}
+	c.lastReq = time.Now()
+}
+
 func (c *Client) FetchCard(name card.CardName) (card.Card, error) {
+	c.throttle()
 	reqURL := fmt.Sprintf("%s/cards/named?exact=%s", c.baseURL, url.QueryEscape(string(name)))
 
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
