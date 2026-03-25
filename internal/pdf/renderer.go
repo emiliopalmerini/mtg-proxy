@@ -133,6 +133,25 @@ func drawGrid(p *fpdf.Fpdf, cardCount int) {
 }
 
 func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
+	if c.IsMultiFaced() {
+		halfH := (cardH - padding) / 2
+		renderFace(p, c.Faces[0], x, y, halfH)
+
+		// Face separator
+		sepY := y + halfH + padding/2
+		p.SetDrawColor(0, 0, 0)
+		p.SetLineWidth(0.2)
+		p.SetDashPattern([]float64{0.3, 1.5}, 0)
+		p.Line(x+padding, sepY, x+cardW-padding, sepY)
+		p.SetDashPattern([]float64{}, 0)
+
+		renderFace(p, c.Faces[1], x, sepY+padding/2, halfH)
+	} else {
+		renderFace(p, c.Front(), x, y, cardH)
+	}
+}
+
+func renderFace(p *fpdf.Fpdf, f card.CardFace, x, y, height float64) {
 	innerX := x + padding
 	innerW := cardW - 2*padding
 	cursorY := y + padding
@@ -141,15 +160,15 @@ func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
 	p.SetFont(fontName, "B", 7)
 	p.SetXY(innerX, cursorY)
 
-	manaCost := c.ManaCost.String()
+	manaCost := f.ManaCost.String()
 	nameW := innerW
 	if manaCost != "" {
 		costW := p.GetStringWidth(manaCost) + 1
 		nameW = innerW - costW
-		p.CellFormat(nameW, 4, string(c.Name), "", 0, "L", false, 0, "")
+		p.CellFormat(nameW, 4, string(f.Name), "", 0, "L", false, 0, "")
 		p.CellFormat(costW, 4, manaCost, "", 0, "R", false, 0, "")
 	} else {
-		p.CellFormat(nameW, 4, string(c.Name), "", 0, "L", false, 0, "")
+		p.CellFormat(nameW, 4, string(f.Name), "", 0, "L", false, 0, "")
 	}
 	cursorY += 5
 
@@ -164,7 +183,7 @@ func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
 	// Type line
 	p.SetFont(fontName, "", 6)
 	p.SetXY(innerX, cursorY)
-	p.CellFormat(innerW, 3.5, string(c.TypeLine), "", 0, "L", false, 0, "")
+	p.CellFormat(innerW, 3.5, string(f.TypeLine), "", 0, "L", false, 0, "")
 	cursorY += 4.5
 
 	// Separator
@@ -175,27 +194,27 @@ func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
 
 	// Oracle text - clip to available height
 	footerH := 0.0
-	if c.Stats != nil || c.Loyalty != nil {
+	if f.Stats != nil || f.Loyalty != nil {
 		footerH = 5.0
 	}
-	oracleMaxY := y + cardH - padding - footerH
+	oracleMaxY := y + height - padding - footerH
 
 	p.SetFont(fontName, "", 5.5)
 	p.ClipRect(innerX, cursorY, innerW, oracleMaxY-cursorY, false)
 	p.SetXY(innerX, cursorY)
-	p.MultiCell(innerW, 3, string(c.OracleText), "", "L", false)
+	p.MultiCell(innerW, 3, string(f.OracleText), "", "L", false)
 	p.ClipEnd()
 
 	// Footer: Stats or Loyalty
-	if c.Stats != nil {
-		footer := fmt.Sprintf("%s/%s", c.Stats.Power, c.Stats.Toughness)
+	if f.Stats != nil {
+		footer := fmt.Sprintf("%s/%s", f.Stats.Power, f.Stats.Toughness)
 		p.SetFont(fontName, "B", 7)
-		p.SetXY(innerX, y+cardH-padding-4)
+		p.SetXY(innerX, y+height-padding-4)
 		p.CellFormat(innerW, 4, footer, "", 0, "R", false, 0, "")
-	} else if c.Loyalty != nil {
-		footer := fmt.Sprintf("Loyalty: %s", *c.Loyalty)
+	} else if f.Loyalty != nil {
+		footer := fmt.Sprintf("Loyalty: %s", *f.Loyalty)
 		p.SetFont(fontName, "B", 7)
-		p.SetXY(innerX, y+cardH-padding-4)
+		p.SetXY(innerX, y+height-padding-4)
 		p.CellFormat(innerW, 4, footer, "", 0, "R", false, 0, "")
 	}
 }

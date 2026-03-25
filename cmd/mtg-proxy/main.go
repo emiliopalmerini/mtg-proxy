@@ -52,8 +52,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "warning: skipping %q: %v\n", entry.Name, err)
 			continue
 		}
-		if skipBasics && c.TypeLine.IsBasicLand() {
-			fmt.Fprintf(os.Stderr, "skipping basic land: %s\n", c.Name)
+		if skipBasics && c.IsBasicLand() {
+			fmt.Fprintf(os.Stderr, "skipping basic land: %s\n", c.Front().Name)
 			continue
 		}
 		deckCards = append(deckCards, card.DeckCard{Card: c, Quantity: entry.Quantity})

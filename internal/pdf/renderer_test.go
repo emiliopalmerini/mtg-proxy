@@ -10,28 +10,32 @@ import (
 	"github.com/epalmerini/mtg-proxy/internal/pdf"
 )
 
+func singleFaceCard(f card.CardFace) card.Card {
+	return card.Card{Faces: []card.CardFace{f}}
+}
+
 func bolt() card.Card {
-	return card.Card{
+	return singleFaceCard(card.CardFace{
 		Name:       "Lightning Bolt",
 		ManaCost:   card.ParseManaCost("{R}"),
 		TypeLine:   "Instant",
 		OracleText: "Lightning Bolt deals 3 damage to any target.",
-	}
+	})
 }
 
 func tarmogoyf() card.Card {
-	return card.Card{
+	return singleFaceCard(card.CardFace{
 		Name:       "Tarmogoyf",
 		ManaCost:   card.ParseManaCost("{1}{G}"),
 		TypeLine:   "Creature — Lhurgoyf",
 		OracleText: "Tarmogoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
 		Stats:      &card.Stats{Power: "*", Toughness: "1+*"},
-	}
+	})
 }
 
 func jace() card.Card {
 	l := card.Loyalty("3")
-	return card.Card{
+	return singleFaceCard(card.CardFace{
 		Name:     "Jace, the Mind Sculptor",
 		ManaCost: card.ParseManaCost("{2}{U}{U}"),
 		TypeLine: "Legendary Planeswalker — Jace",
@@ -40,7 +44,7 @@ func jace() card.Card {
 			"−1: Return target creature to its owner's hand.\n" +
 			"−12: Exile all cards from target player's library.",
 		Loyalty: &l,
-	}
+	})
 }
 
 func renderToFile(t *testing.T, cards []card.DeckCard, opts ...pdf.Option) (string, []byte) {
@@ -160,12 +164,12 @@ func TestRenderPlaneswalkerHasFooter(t *testing.T) {
 
 func TestRenderExpandsQuantity(t *testing.T) {
 	// 4 copies of bolt + 2 copies of counterspell = 6 cards on the page
-	cs := card.Card{
+	cs := singleFaceCard(card.CardFace{
 		Name:       "Counterspell",
 		ManaCost:   card.ParseManaCost("{U}{U}"),
 		TypeLine:   "Instant",
 		OracleText: "Counter target spell.",
-	}
+	})
 	cards := []card.DeckCard{
 		{Card: bolt(), Quantity: 4},
 		{Card: cs, Quantity: 2},

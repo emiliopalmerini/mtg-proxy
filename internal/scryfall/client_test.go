@@ -96,16 +96,16 @@ func TestFetchInstant(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if c.Name != "Lightning Bolt" {
-		t.Errorf("name: got %q, want %q", c.Name, "Lightning Bolt")
+	if c.Front().Name != "Lightning Bolt" {
+		t.Errorf("name: got %q, want %q", c.Front().Name, "Lightning Bolt")
 	}
-	if c.ManaCost.String() != "R" {
-		t.Errorf("mana cost: got %q, want %q", c.ManaCost, "R")
+	if c.Front().ManaCost.String() != "R" {
+		t.Errorf("mana cost: got %q, want %q", c.Front().ManaCost, "R")
 	}
-	if c.Stats != nil {
+	if c.Front().Stats != nil {
 		t.Errorf("stats: expected nil for instant")
 	}
-	if c.Loyalty != nil {
+	if c.Front().Loyalty != nil {
 		t.Errorf("loyalty: expected nil for instant")
 	}
 }
@@ -127,11 +127,11 @@ func TestFetchCreature(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if c.Stats == nil {
+	if c.Front().Stats == nil {
 		t.Fatal("stats: expected non-nil for creature")
 	}
-	if c.Stats.Power != "*" || c.Stats.Toughness != "1+*" {
-		t.Errorf("stats: got %v", *c.Stats)
+	if c.Front().Stats.Power != "*" || c.Front().Stats.Toughness != "1+*" {
+		t.Errorf("stats: got %v", *c.Front().Stats)
 	}
 }
 
@@ -152,11 +152,11 @@ func TestFetchPlaneswalker(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if c.Loyalty == nil || *c.Loyalty != "3" {
-		t.Errorf("loyalty: got %v", c.Loyalty)
+	if c.Front().Loyalty == nil || *c.Front().Loyalty != "3" {
+		t.Errorf("loyalty: got %v", c.Front().Loyalty)
 	}
-	if c.ManaCost.String() != "2UU" {
-		t.Errorf("mana cost: got %q", c.ManaCost)
+	if c.Front().ManaCost.String() != "2UU" {
+		t.Errorf("mana cost: got %q", c.Front().ManaCost)
 	}
 }
 
@@ -212,8 +212,8 @@ func TestFetchBySetAndCollector(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if c.Name != "Ankh of Mishra" {
-		t.Errorf("name: got %q", c.Name)
+	if c.Front().Name != "Ankh of Mishra" {
+		t.Errorf("name: got %q", c.Front().Name)
 	}
 }
 
@@ -267,8 +267,8 @@ func TestFetchLand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !c.ManaCost.IsEmpty() {
-		t.Errorf("mana cost: expected empty for land, got %q", c.ManaCost)
+	if !c.Front().ManaCost.IsEmpty() {
+		t.Errorf("mana cost: expected empty for land, got %q", c.Front().ManaCost)
 	}
 }
 

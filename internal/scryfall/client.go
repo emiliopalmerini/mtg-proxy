@@ -11,8 +11,7 @@ import (
 	"github.com/epalmerini/mtg-proxy/internal/card"
 )
 
-type apiResponse struct {
-	Object     string  `json:"object"`
+type apiCardFace struct {
 	Name       string  `json:"name"`
 	ManaCost   string  `json:"mana_cost"`
 	TypeLine   string  `json:"type_line"`
@@ -20,7 +19,19 @@ type apiResponse struct {
 	Power      *string `json:"power,omitempty"`
 	Toughness  *string `json:"toughness,omitempty"`
 	Loyalty    *string `json:"loyalty,omitempty"`
-	Details    string  `json:"details,omitempty"`
+}
+
+type apiResponse struct {
+	Object     string        `json:"object"`
+	Name       string        `json:"name"`
+	ManaCost   string        `json:"mana_cost"`
+	TypeLine   string        `json:"type_line"`
+	OracleText string        `json:"oracle_text"`
+	Power      *string       `json:"power,omitempty"`
+	Toughness  *string       `json:"toughness,omitempty"`
+	Loyalty    *string       `json:"loyalty,omitempty"`
+	Details    string        `json:"details,omitempty"`
+	CardFaces  []apiCardFace `json:"card_faces,omitempty"`
 }
 
 const requestDelay = 100 * time.Millisecond
@@ -90,21 +101,40 @@ func (c *Client) FetchCard(entry card.DeckEntry) (card.Card, error) {
 		return card.Card{}, fmt.Errorf("decoding card %q: %w", entry.Name, err)
 	}
 
-	result := card.Card{
-		Name:       card.CardName(data.Name),
-		ManaCost:   card.ParseManaCost(data.ManaCost),
-		TypeLine:   card.TypeLine(data.TypeLine),
-		OracleText: card.OracleText(data.OracleText),
+	var faces []card.CardFace
+
+	if len(data.CardFaces) > 0 {
+		for _, f := range data.CardFaces {
+			faces = append(faces, mapFace(f))
+		}
+	} else {
+		faces = append(faces, mapFace(apiCardFace{
+			Name:       data.Name,
+			ManaCost:   data.ManaCost,
+			TypeLine:   data.TypeLine,
+			OracleText: data.OracleText,
+			Power:      data.Power,
+			Toughness:  data.Toughness,
+			Loyalty:    data.Loyalty,
+		}))
 	}
 
-	if data.Power != nil && data.Toughness != nil {
-		result.Stats = &card.Stats{Power: *data.Power, Toughness: *data.Toughness}
-	}
+	return card.Card{Faces: faces}, nil
+}
 
-	if data.Loyalty != nil {
-		l := card.Loyalty(*data.Loyalty)
-		result.Loyalty = &l
+func mapFace(f apiCardFace) card.CardFace {
+	face := card.CardFace{
+		Name:       card.CardName(f.Name),
+		ManaCost:   card.ParseManaCost(f.ManaCost),
+		TypeLine:   card.TypeLine(f.TypeLine),
+		OracleText: card.OracleText(f.OracleText),
 	}
-
-	return result, nil
+	if f.Power != nil && f.Toughness != nil {
+		face.Stats = &card.Stats{Power: *f.Power, Toughness: *f.Toughness}
+	}
+	if f.Loyalty != nil {
+		l := card.Loyalty(*f.Loyalty)
+		face.Loyalty = &l
+	}
+	return face
 }

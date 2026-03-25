@@ -103,14 +103,36 @@ type CollectorNumber string
 func (c CollectorNumber) String() string { return string(c) }
 func (c CollectorNumber) IsEmpty() bool  { return c == "" }
 
-// Card represents a Magic: The Gathering card with its relevant fields.
-type Card struct {
+// CardFace represents one face of a Magic card.
+type CardFace struct {
 	Name       CardName
 	ManaCost   ManaCost
 	TypeLine   TypeLine
 	OracleText OracleText
 	Stats      *Stats
 	Loyalty    *Loyalty
+}
+
+// Card represents a Magic: The Gathering card. All cards have at least one face.
+// Double-faced cards (MDFCs, transform, etc.) have two faces.
+type Card struct {
+	Faces []CardFace
+}
+
+// Front returns the first (front) face of the card.
+func (c Card) Front() CardFace { return c.Faces[0] }
+
+// IsMultiFaced returns true if the card has more than one face.
+func (c Card) IsMultiFaced() bool { return len(c.Faces) > 1 }
+
+// IsBasicLand returns true if any face is a basic land.
+func (c Card) IsBasicLand() bool {
+	for _, f := range c.Faces {
+		if f.TypeLine.IsBasicLand() {
+			return true
+		}
+	}
+	return false
 }
 
 // DeckEntry represents a card entry in a decklist with its quantity.

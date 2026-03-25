@@ -129,31 +129,27 @@ func TestGenerateFullPipeline(t *testing.T) {
 		deckCards = append(deckCards, card.DeckCard{Card: c, Quantity: entry.Quantity})
 	}
 
-	// Verify card data was correctly mapped
-	assertCard(t, deckCards[0].Card, card.Card{
+	// Verify card data was correctly mapped (check front face)
+	assertFace(t, deckCards[0].Card.Front(), card.CardFace{
 		Name:       "Lightning Bolt",
 		ManaCost:   card.ParseManaCost("{R}"),
 		TypeLine:   "Instant",
 		OracleText: "Lightning Bolt deals 3 damage to any target.",
-		Stats:      nil,
-		Loyalty:    nil,
 	})
-	assertCard(t, deckCards[2].Card, card.Card{
+	assertFace(t, deckCards[2].Card.Front(), card.CardFace{
 		Name:       "Tarmogoyf",
 		ManaCost:   card.ParseManaCost("{1}{G}"),
 		TypeLine:   "Creature — Lhurgoyf",
 		OracleText: "Tarmogoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
 		Stats:      &card.Stats{Power: "*", Toughness: "1+*"},
-		Loyalty:    nil,
 	})
 
 	jLoyalty := card.Loyalty("3")
-	assertCard(t, deckCards[3].Card, card.Card{
+	assertFace(t, deckCards[3].Card.Front(), card.CardFace{
 		Name:       "Jace, the Mind Sculptor",
 		ManaCost:   card.ParseManaCost("{2}{U}{U}"),
 		TypeLine:   "Legendary Planeswalker — Jace",
 		OracleText: card.OracleText(testCards["Jace, the Mind Sculptor"].OracleText),
-		Stats:      nil,
 		Loyalty:    &jLoyalty,
 	})
 
@@ -323,7 +319,7 @@ func TestGenerateEmptyDecklist(t *testing.T) {
 	}
 }
 
-func assertCard(t *testing.T, got, want card.Card) {
+func assertFace(t *testing.T, got, want card.CardFace) {
 	t.Helper()
 	if got.Name != want.Name {
 		t.Errorf("name: got %q, want %q", got.Name, want.Name)
