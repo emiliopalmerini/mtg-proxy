@@ -2,6 +2,7 @@ package card
 
 import (
 	"fmt"
+	"image"
 	"regexp"
 	"strings"
 )
@@ -116,7 +117,8 @@ type CardFace struct {
 // Card represents a Magic: The Gathering card. All cards have at least one face.
 // Double-faced cards (MDFCs, transform, etc.) have two faces.
 type Card struct {
-	Faces []CardFace
+	Faces      []CardFace
+	ArtCropURL string
 }
 
 // Front returns the first (front) face of the card.
@@ -141,12 +143,15 @@ type DeckEntry struct {
 	Quantity        Quantity
 	SetCode         SetCode
 	CollectorNumber CollectorNumber
+	IsCommander     bool
 }
 
 // DeckCard combines a resolved card with its quantity in the deck.
 type DeckCard struct {
-	Card     Card
-	Quantity Quantity
+	Card        Card
+	Quantity    Quantity
+	IsCommander bool
+	ArtImage    image.Image
 }
 
 // CardFetcher retrieves card data. Uses set+collector when available, falls back to name.

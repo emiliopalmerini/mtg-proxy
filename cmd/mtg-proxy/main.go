@@ -3,10 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"net/http"
 	"os"
 
 	"github.com/epalmerini/mtg-proxy/internal/app"
 	"github.com/epalmerini/mtg-proxy/internal/card"
+	"github.com/epalmerini/mtg-proxy/internal/halftone"
 )
 
 const scryfallBaseURL = "https://api.scryfall.com"
@@ -56,7 +60,16 @@ func main() {
 			fmt.Fprintf(os.Stderr, "skipping basic land: %s\n", c.Front().Name)
 			continue
 		}
-		deckCards = append(deckCards, card.DeckCard{Card: c, Quantity: entry.Quantity})
+		dc := card.DeckCard{Card: c, Quantity: entry.Quantity, IsCommander: entry.IsCommander}
+		if entry.IsCommander && c.ArtCropURL != "" {
+			art, err := fetchArtCrop(c.ArtCropURL)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not fetch art for %q: %v\n", entry.Name, err)
+			} else {
+				dc.ArtImage = halftone.Apply(art, 8)
+			}
+		}
+		deckCards = append(deckCards, dc)
 	}
 
 	if len(deckCards) == 0 {
@@ -71,4 +84,28 @@ func main() {
 	}
 
 	fmt.Fprintf(os.Stderr, "done: %d cards written to %s\n", len(deckCards), outputPath)
+}
+
+func fetchArtCrop(url string) (image.Image, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "mtg-proxy/1.0")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	img, err := jpeg.Decode(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("decoding image: %w", err)
+	}
+	return img, nil
 }

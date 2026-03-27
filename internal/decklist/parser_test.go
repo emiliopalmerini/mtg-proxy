@@ -157,6 +157,58 @@ func TestParseRichFormatLargeQuantity(t *testing.T) {
 	})
 }
 
+func TestParseCommanderTag(t *testing.T) {
+	input := "1x Liesa, Shroud of Dusk (cmr) 286 [Commander{top}]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	assertEntries(t, entries, []card.DeckEntry{
+		{Name: "Liesa, Shroud of Dusk", Quantity: 1, SetCode: "cmr", CollectorNumber: "286", IsCommander: true},
+	})
+}
+
+func TestParseCommanderTagCaseInsensitive(t *testing.T) {
+	input := "1x Liesa, Shroud of Dusk (cmr) 286 [commander]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !entries[0].IsCommander {
+		t.Error("expected IsCommander to be true")
+	}
+}
+
+func TestParseCommanderAmongOtherTags(t *testing.T) {
+	input := "1x Some Card (set) 1 [Slug,Commander{top},Creature]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !entries[0].IsCommander {
+		t.Error("expected IsCommander to be true")
+	}
+}
+
+func TestParseNonCommanderTag(t *testing.T) {
+	input := "1x Ankh of Mishra (6ed) 273 [Slug]\n"
+
+	entries, err := decklist.NewParser().Parse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if entries[0].IsCommander {
+		t.Error("expected IsCommander to be false")
+	}
+}
+
 func assertEntries(t *testing.T, got, want []card.DeckEntry) {
 	t.Helper()
 	if len(got) != len(want) {
@@ -174,6 +226,9 @@ func assertEntries(t *testing.T, got, want []card.DeckEntry) {
 		}
 		if got[i].CollectorNumber != want[i].CollectorNumber {
 			t.Errorf("[%d] collector: got %q, want %q", i, got[i].CollectorNumber, want[i].CollectorNumber)
+		}
+		if got[i].IsCommander != want[i].IsCommander {
+			t.Errorf("[%d] commander: got %v, want %v", i, got[i].IsCommander, want[i].IsCommander)
 		}
 	}
 }

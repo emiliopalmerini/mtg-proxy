@@ -21,6 +21,10 @@ type apiCardFace struct {
 	Loyalty    *string `json:"loyalty,omitempty"`
 }
 
+type apiImageURIs struct {
+	ArtCrop string `json:"art_crop"`
+}
+
 type apiResponse struct {
 	Object     string        `json:"object"`
 	Name       string        `json:"name"`
@@ -32,6 +36,7 @@ type apiResponse struct {
 	Loyalty    *string       `json:"loyalty,omitempty"`
 	Details    string        `json:"details,omitempty"`
 	CardFaces  []apiCardFace `json:"card_faces,omitempty"`
+	ImageURIs  *apiImageURIs `json:"image_uris,omitempty"`
 }
 
 const requestDelay = 100 * time.Millisecond
@@ -119,7 +124,12 @@ func (c *Client) FetchCard(entry card.DeckEntry) (card.Card, error) {
 		}))
 	}
 
-	return card.Card{Faces: faces}, nil
+	var artCropURL string
+	if data.ImageURIs != nil {
+		artCropURL = data.ImageURIs.ArtCrop
+	}
+
+	return card.Card{Faces: faces, ArtCropURL: artCropURL}, nil
 }
 
 func mapFace(f apiCardFace) card.CardFace {

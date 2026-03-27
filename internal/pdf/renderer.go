@@ -1,7 +1,10 @@
 package pdf
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/png"
 
 	"github.com/epalmerini/mtg-proxy/internal/card"
 	"github.com/go-pdf/fpdf"
@@ -59,7 +62,7 @@ func (r *Renderer) Render(cards []card.DeckCard, outputPath string) error {
 		p.AddPage()
 	}
 
-	for i, c := range expanded {
+	for i, ec := range expanded {
 		if i%cardsPerPage == 0 {
 			p.AddPage()
 			remaining := len(expanded) - i
@@ -77,17 +80,22 @@ func (r *Renderer) Render(cards []card.DeckCard, outputPath string) error {
 		x := marginX + float64(col)*cardW
 		y := marginY + float64(row)*cardH
 
-		renderCard(p, c, x, y)
+		renderCard(p, ec, x, y)
 	}
 
 	return p.OutputFileAndClose(outputPath)
 }
 
-func expandDeck(cards []card.DeckCard) []card.Card {
-	var expanded []card.Card
+type expandedCard struct {
+	card.Card
+	artImage image.Image
+}
+
+func expandDeck(cards []card.DeckCard) []expandedCard {
+	var expanded []expandedCard
 	for _, dc := range cards {
 		for i := 0; i < int(dc.Quantity); i++ {
-			expanded = append(expanded, dc.Card)
+			expanded = append(expanded, expandedCard{Card: dc.Card, artImage: dc.ArtImage})
 		}
 	}
 	return expanded
@@ -132,10 +140,10 @@ func drawGrid(p *fpdf.Fpdf, cardCount int) {
 	p.SetDashPattern([]float64{}, 0)
 }
 
-func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
-	if c.IsMultiFaced() {
+func renderCard(p *fpdf.Fpdf, ec expandedCard, x, y float64) {
+	if ec.IsMultiFaced() {
 		halfH := (cardH - padding) / 2
-		renderFace(p, c.Faces[0], x, y, halfH)
+		renderFace(p, ec.Faces[0], x, y, halfH, nil)
 
 		// Face separator
 		sepY := y + halfH + padding/2
@@ -145,13 +153,17 @@ func renderCard(p *fpdf.Fpdf, c card.Card, x, y float64) {
 		p.Line(x+padding, sepY, x+cardW-padding, sepY)
 		p.SetDashPattern([]float64{}, 0)
 
-		renderFace(p, c.Faces[1], x, sepY+padding/2, halfH)
+		renderFace(p, ec.Faces[1], x, sepY+padding/2, halfH, nil)
 	} else {
-		renderFace(p, c.Front(), x, y, cardH)
+		renderFace(p, ec.Front(), x, y, cardH, ec.artImage)
 	}
 }
 
-func renderFace(p *fpdf.Fpdf, f card.CardFace, x, y, height float64) {
+const artHeight = 30.0
+
+var artCounter int
+
+func renderFace(p *fpdf.Fpdf, f card.CardFace, x, y, height float64, artImage image.Image) {
 	innerX := x + padding
 	innerW := cardW - 2*padding
 	cursorY := y + padding
@@ -179,6 +191,23 @@ func renderFace(p *fpdf.Fpdf, f card.CardFace, x, y, height float64) {
 	p.Line(innerX, cursorY, x+cardW-padding, cursorY)
 	p.SetDashPattern([]float64{}, 0)
 	cursorY += 1
+
+	// Art image (commander only)
+	if artImage != nil {
+		artH := artHeight
+		if cursorY+artH > y+height-padding {
+			artH = y + height - padding - cursorY
+		}
+		if artH > 0 {
+			registerAndPlaceImage(p, artImage, innerX, cursorY, innerW, artH)
+			cursorY += artH + 1
+
+			// Separator after art
+			p.SetDashPattern([]float64{0.3, 1.5}, 0)
+			p.Line(innerX, cursorY-1, x+cardW-padding, cursorY-1)
+			p.SetDashPattern([]float64{}, 0)
+		}
+	}
 
 	// Type line
 	p.SetFont(fontName, "", 6)
@@ -217,4 +246,15 @@ func renderFace(p *fpdf.Fpdf, f card.CardFace, x, y, height float64) {
 		p.SetXY(innerX, y+height-padding-4)
 		p.CellFormat(innerW, 4, footer, "", 0, "R", false, 0, "")
 	}
+}
+
+func registerAndPlaceImage(p *fpdf.Fpdf, img image.Image, x, y, w, h float64) {
+	var buf bytes.Buffer
+	png.Encode(&buf, img)
+
+	name := fmt.Sprintf("art_%d", artCounter)
+	artCounter++
+
+	p.RegisterImageOptionsReader(name, fpdf.ImageOptions{ImageType: "PNG"}, &buf)
+	p.ImageOptions(name, x, y, w, h, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 }

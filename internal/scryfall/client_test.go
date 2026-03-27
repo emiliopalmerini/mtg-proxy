@@ -13,15 +13,20 @@ import (
 	"github.com/epalmerini/mtg-proxy/internal/scryfall"
 )
 
+type imageURIs struct {
+	ArtCrop string `json:"art_crop,omitempty"`
+}
+
 type scryfallResponse struct {
-	Object     string  `json:"object"`
-	Name       string  `json:"name"`
-	ManaCost   string  `json:"mana_cost"`
-	TypeLine   string  `json:"type_line"`
-	OracleText string  `json:"oracle_text"`
-	Power      *string `json:"power,omitempty"`
-	Toughness  *string `json:"toughness,omitempty"`
-	Loyalty    *string `json:"loyalty,omitempty"`
+	Object     string     `json:"object"`
+	Name       string     `json:"name"`
+	ManaCost   string     `json:"mana_cost"`
+	TypeLine   string     `json:"type_line"`
+	OracleText string     `json:"oracle_text"`
+	Power      *string    `json:"power,omitempty"`
+	Toughness  *string    `json:"toughness,omitempty"`
+	Loyalty    *string    `json:"loyalty,omitempty"`
+	ImageURIs  *imageURIs `json:"image_uris,omitempty"`
 }
 
 func ptr(s string) *string { return &s }
@@ -269,6 +274,50 @@ func TestFetchLand(t *testing.T) {
 	}
 	if !c.Front().ManaCost.IsEmpty() {
 		t.Errorf("mana cost: expected empty for land, got %q", c.Front().ManaCost)
+	}
+}
+
+func TestFetchArtCropURL(t *testing.T) {
+	server := newNameServer(t, map[string]scryfallResponse{
+		"cmr/286": {
+			Object: "card", Name: "Liesa, Shroud of Dusk", ManaCost: "{3}{W}{B}",
+			TypeLine:   "Legendary Creature — Angel",
+			OracleText: "Flying, lifelink",
+			Power:      ptr("5"),
+			Toughness:  ptr("5"),
+			ImageURIs:  &imageURIs{ArtCrop: "https://cards.scryfall.io/art_crop/front/e/3/e32453a1.jpg"},
+		},
+	})
+	defer server.Close()
+
+	client := scryfall.NewClient(server.URL)
+	c, err := client.FetchCard(bySet("Liesa, Shroud of Dusk", "cmr", "286"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if c.ArtCropURL != "https://cards.scryfall.io/art_crop/front/e/3/e32453a1.jpg" {
+		t.Errorf("art crop URL: got %q", c.ArtCropURL)
+	}
+}
+
+func TestFetchArtCropURLMissing(t *testing.T) {
+	server := newNameServer(t, map[string]scryfallResponse{
+		"Lightning Bolt": {
+			Object: "card", Name: "Lightning Bolt", ManaCost: "{R}",
+			TypeLine: "Instant",
+		},
+	})
+	defer server.Close()
+
+	client := scryfall.NewClient(server.URL)
+	c, err := client.FetchCard(byName("Lightning Bolt"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if c.ArtCropURL != "" {
+		t.Errorf("expected empty art crop URL, got %q", c.ArtCropURL)
 	}
 }
 

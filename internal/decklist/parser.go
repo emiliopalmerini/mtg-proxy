@@ -39,13 +39,14 @@ func (p *Parser) Parse(content string) ([]card.DeckEntry, error) {
 			return nil, fmt.Errorf("line %d: quantity must be positive, got %d", i+1, qty)
 		}
 
-		name, setCode, collectorNum := parseCardDetails(rest)
+		name, setCode, collectorNum, isCommander := parseCardDetails(rest)
 
 		entries = append(entries, card.DeckEntry{
 			Name:            card.CardName(name),
 			Quantity:        card.Quantity(qty),
 			SetCode:         card.SetCode(setCode),
 			CollectorNumber: card.CollectorNumber(collectorNum),
+			IsCommander:     isCommander,
 		})
 	}
 
@@ -55,11 +56,25 @@ func (p *Parser) Parse(content string) ([]card.DeckEntry, error) {
 // parseCardDetails extracts card name, set code, and collector number from
 // the remainder of a decklist line after the quantity.
 // Handles both simple ("Lightning Bolt") and rich ("Ankh of Mishra (6ed) 273 [Slug]") formats.
-func parseCardDetails(s string) (name, setCode, collectorNum string) {
+func parseCardDetails(s string) (name, setCode, collectorNum string, isCommander bool) {
 	s = strings.TrimSpace(s)
 
-	// Strip tags: [...]
+	// Extract and strip tags: [...]
 	if idx := strings.Index(s, "["); idx != -1 {
+		closeIdx := strings.Index(s[idx:], "]")
+		if closeIdx != -1 {
+			tagContent := s[idx+1 : idx+closeIdx]
+			for _, tag := range strings.Split(tagContent, ",") {
+				tag = strings.TrimSpace(tag)
+				// Strip modifiers like {top} from tag
+				if braceIdx := strings.Index(tag, "{"); braceIdx != -1 {
+					tag = tag[:braceIdx]
+				}
+				if strings.EqualFold(tag, "Commander") {
+					isCommander = true
+				}
+			}
+		}
 		s = strings.TrimSpace(s[:idx])
 	}
 

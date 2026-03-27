@@ -1,6 +1,8 @@
 package pdf_test
 
 import (
+	"image"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
@@ -179,6 +181,47 @@ func TestRenderExpandsQuantity(t *testing.T) {
 	pageCount := countPDFPages(data)
 	if pageCount != 1 {
 		t.Errorf("expected 1 page for 6 cards, got %d", pageCount)
+	}
+}
+
+func TestRenderCommanderWithArt(t *testing.T) {
+	// Create a small test image (halftone-like)
+	img := image.NewGray(image.Rect(0, 0, 100, 80))
+	for y := 0; y < 80; y++ {
+		for x := 0; x < 100; x++ {
+			if (x+y)%3 == 0 {
+				img.SetGray(x, y, color.Gray{Y: 0})
+			} else {
+				img.SetGray(x, y, color.Gray{Y: 255})
+			}
+		}
+	}
+
+	liesa := card.DeckCard{
+		Card: singleFaceCard(card.CardFace{
+			Name:       "Liesa, Shroud of Dusk",
+			ManaCost:   card.ParseManaCost("{3}{W}{B}"),
+			TypeLine:   "Legendary Creature — Angel",
+			OracleText: "Flying, lifelink",
+			Stats:      &card.Stats{Power: "5", Toughness: "5"},
+		}),
+		Quantity:    1,
+		IsCommander: true,
+		ArtImage:    img,
+	}
+
+	_, data := renderToFile(t, []card.DeckCard{liesa})
+
+	if string(data[:5]) != "%PDF-" {
+		t.Fatal("commander with art did not produce valid PDF")
+	}
+
+	// PDF with art should be larger than one without
+	noArt := liesa
+	noArt.ArtImage = nil
+	_, noArtData := renderToFile(t, []card.DeckCard{noArt})
+	if len(data) <= len(noArtData) {
+		t.Errorf("PDF with art (%d bytes) should be larger than without (%d bytes)", len(data), len(noArtData))
 	}
 }
 
