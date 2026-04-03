@@ -153,7 +153,14 @@ func renderCard(p *fpdf.Fpdf, ec expandedCard, x, y float64) {
 		p.Line(x+padding, sepY, x+cardW-padding, sepY)
 		p.SetDashPattern([]float64{}, 0)
 
-		renderFace(p, ec.Faces[1], x, sepY+padding/2, halfH, nil)
+		// Render second face upside down (180° rotation around its center)
+		faceY := sepY + padding/2
+		cx := x + cardW/2
+		cy := faceY + halfH/2
+		p.TransformBegin()
+		p.TransformRotate(180, cx, cy)
+		renderFace(p, ec.Faces[1], x, faceY, halfH, nil)
+		p.TransformEnd()
 	} else {
 		renderFace(p, ec.Front(), x, y, cardH, ec.artImage)
 	}
