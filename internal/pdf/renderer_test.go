@@ -225,6 +225,43 @@ func TestRenderCommanderWithArt(t *testing.T) {
 	}
 }
 
+func doubleFacedCard() card.Card {
+	return card.Card{
+		Faces: []card.CardFace{
+			{
+				Name:       "Delver of Secrets",
+				ManaCost:   card.ParseManaCost("{U}"),
+				TypeLine:   "Creature — Human Wizard",
+				OracleText: "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform Delver of Secrets.",
+				Stats:      &card.Stats{Power: "1", Toughness: "1"},
+			},
+			{
+				Name:       "Insectile Aberration",
+				ManaCost:   card.ParseManaCost(""),
+				TypeLine:   "Creature — Human Insect",
+				OracleText: "Flying",
+				Stats:      &card.Stats{Power: "3", Toughness: "2"},
+			},
+		},
+	}
+}
+
+func TestRenderDoubleFacedCard(t *testing.T) {
+	cards := []card.DeckCard{
+		{Card: doubleFacedCard(), Quantity: 1},
+	}
+	_, data := renderToFile(t, cards)
+
+	if string(data[:5]) != "%PDF-" {
+		t.Fatal("double-faced card did not produce valid PDF")
+	}
+
+	pageCount := countPDFPages(data)
+	if pageCount != 1 {
+		t.Errorf("expected 1 page for 1 double-faced card, got %d", pageCount)
+	}
+}
+
 // countPDFPages counts pages by looking for /Type /Page entries that are not /Type /Pages.
 func countPDFPages(data []byte) int {
 	content := string(data)
