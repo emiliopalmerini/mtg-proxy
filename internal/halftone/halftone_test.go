@@ -17,29 +17,8 @@ func TestApplyReturnsCorrectSize(t *testing.T) {
 	}
 }
 
-func TestApplyBlackInputProducesLargeDots(t *testing.T) {
+func TestApplyWhiteInputStaysWhite(t *testing.T) {
 	src := image.NewGray(image.Rect(0, 0, 16, 16))
-	// Fill black
-	for y := 0; y < 16; y++ {
-		for x := 0; x < 16; x++ {
-			src.SetGray(x, y, color.Gray{Y: 0})
-		}
-	}
-
-	out := halftone.Apply(src, 8)
-
-	// Count black pixels — should be high for a black input
-	black := countBlack(out)
-	total := 16 * 16
-	ratio := float64(black) / float64(total)
-	if ratio < 0.4 {
-		t.Errorf("expected high black ratio for black input, got %.2f", ratio)
-	}
-}
-
-func TestApplyWhiteInputProducesNoDots(t *testing.T) {
-	src := image.NewGray(image.Rect(0, 0, 16, 16))
-	// Fill white
 	for y := 0; y < 16; y++ {
 		for x := 0; x < 16; x++ {
 			src.SetGray(x, y, color.Gray{Y: 255})
@@ -47,46 +26,52 @@ func TestApplyWhiteInputProducesNoDots(t *testing.T) {
 	}
 
 	out := halftone.Apply(src, 8)
-
-	black := countBlack(out)
-	if black != 0 {
-		t.Errorf("expected 0 black pixels for white input, got %d", black)
+	for y := 0; y < 16; y++ {
+		for x := 0; x < 16; x++ {
+			if got := color.GrayModel.Convert(out.At(x, y)).(color.Gray).Y; got != 255 {
+				t.Fatalf("expected white pixel, got %d at (%d,%d)", got, x, y)
+			}
+		}
 	}
 }
 
-func TestApplyOutputIsBinaryBW(t *testing.T) {
-	src := image.NewGray(image.Rect(0, 0, 24, 24))
-	// Fill mid-gray
-	for y := 0; y < 24; y++ {
-		for x := 0; x < 24; x++ {
+func TestApplyUsesOnlyInkSavingPalette(t *testing.T) {
+	src := image.NewGray(image.Rect(0, 0, 32, 32))
+	for y := 0; y < 32; y++ {
+		for x := 0; x < 32; x++ {
+			src.SetGray(x, y, color.Gray{Y: uint8((x * 255) / 31)})
+		}
+	}
+
+	out := halftone.Apply(src, 8)
+	allowed := map[uint8]bool{255: true, 224: true, 176: true, 64: true}
+	for y := 0; y < 32; y++ {
+		for x := 0; x < 32; x++ {
+			v := color.GrayModel.Convert(out.At(x, y)).(color.Gray).Y
+			if !allowed[v] {
+				t.Fatalf("pixel (%d,%d) uses unexpected gray level %d", x, y, v)
+			}
+		}
+	}
+}
+
+func TestApplyLightensMidtones(t *testing.T) {
+	src := image.NewGray(image.Rect(0, 0, 64, 64))
+	for y := 0; y < 64; y++ {
+		for x := 0; x < 64; x++ {
 			src.SetGray(x, y, color.Gray{Y: 128})
 		}
 	}
 
 	out := halftone.Apply(src, 8)
-
-	for y := 0; y < 24; y++ {
-		for x := 0; x < 24; x++ {
-			r, g, b, _ := out.At(x, y).RGBA()
-			isBlack := r == 0 && g == 0 && b == 0
-			isWhite := r == 0xffff && g == 0xffff && b == 0xffff
-			if !isBlack && !isWhite {
-				t.Fatalf("pixel (%d,%d) is neither black nor white", x, y)
-			}
+	var total int
+	for y := 0; y < 64; y++ {
+		for x := 0; x < 64; x++ {
+			total += int(color.GrayModel.Convert(out.At(x, y)).(color.Gray).Y)
 		}
 	}
-}
-
-func countBlack(img image.Image) int {
-	b := img.Bounds()
-	count := 0
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			r, g, bb, _ := img.At(x, y).RGBA()
-			if r == 0 && g == 0 && bb == 0 {
-				count++
-			}
-		}
+	average := float64(total) / (64 * 64)
+	if average <= 128 {
+		t.Fatalf("expected ink-saving output lighter than source, average %.1f", average)
 	}
-	return count
 }
