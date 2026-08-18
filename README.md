@@ -1,8 +1,8 @@
 # mtg-proxy
 
-A CLI tool that generates printable PDF proxy cards for Magic: The Gathering. It parses a decklist, fetches card data and art from the [Scryfall API](https://scryfall.com/docs/api), and renders printable proxies onto A4 pages (3x3 grid, 63x88mm per card).
+A CLI tool that generates printable PDF proxy cards for Magic: The Gathering. It parses a decklist, fetches card data from the [Scryfall API](https://scryfall.com/docs/api), and renders printable proxies onto A4 pages (3x3 grid, 63x88mm per card).
 
-Every card includes its art. Before embedding it, mtg-proxy converts the art to a light-biased four-level grayscale palette and applies Floyd-Steinberg error-diffusion dithering. This keeps cards visually identifiable while limiting ink/toner coverage compared with printing the original full-color art. Double-faced cards use the corresponding art for each face.
+Commander cards include art by default. Use `-art-all` to include art on every card. Before embedding art, mtg-proxy converts it to a light-biased four-level grayscale palette and applies Floyd-Steinberg error-diffusion dithering. This keeps cards visually identifiable while limiting ink/toner coverage compared with printing the original full-color art. Double-faced cards use the corresponding art for each face.
 
 ## Requirements
 
@@ -28,13 +28,20 @@ go build ./cmd/mtg-proxy
 mtg-proxy -i decklist.txt -o proxies.pdf
 ```
 
+To add dithered art to every card:
+
+```bash
+mtg-proxy -i decklist.txt -o proxies.pdf -art-all
+```
+
 ### Flags
 
-| Flag           | Default       | Description                         |
-| -------------- | ------------- | ----------------------------------- |
-| `-i`           | _(required)_  | Path to decklist file               |
-| `-o`           | `proxies.pdf` | Path to output PDF                  |
-| `-skip-basics` | `false`       | Exclude basic lands from the output |
+| Flag           | Default       | Description                              |
+| -------------- | ------------- | ---------------------------------------- |
+| `-i`           | _(required)_  | Path to decklist file                    |
+| `-o`           | `proxies.pdf` | Path to output PDF                       |
+| `-skip-basics` | `false`       | Exclude basic lands from the output      |
+| `-art-all`     | `false`       | Include dithered art on every card       |
 
 ## Decklist formats
 
@@ -63,14 +70,14 @@ Fetches the exact printing from Scryfall:
 - `(set)` set code in parentheses
 - Collector number after the set code
 - `[tags]` are optional and ignored by the parser
-- `[Commander{top}]` marks the card as a commander
+- `[Commander{top}]` marks the card as a commander and includes its art by default
 
 ## Output
 
 The generated PDF uses A4 pages with a 3x3 grid of 63x88mm cards. Each card face includes:
 
 - Card name and mana cost
-- Dithered, ink-saving card art
+- Optional dithered, ink-saving card art
 - Type line
 - Oracle text
 - Power/toughness or loyalty
