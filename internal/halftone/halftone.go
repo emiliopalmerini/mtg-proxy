@@ -3,61 +3,69 @@ package halftone
 import (
 	"image"
 	"image/color"
-	"math"
 )
 
-// Apply converts an image to a black-and-white circular halftone pattern.
-// gridSize controls dot spacing: smaller = more detail, larger = more stylized.
-func Apply(src image.Image, gridSize int) *image.Gray {
+// Apply converts an image to an ink-saving, four-level grayscale palette using
+// Floyd-Steinberg error-diffusion dithering. The deliberately light palette
+// keeps the art recognizable while reducing average toner/ink coverage.
+func Apply(src image.Image, _ int) *image.Gray {
 	bounds := src.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
-
 	dst := image.NewGray(image.Rect(0, 0, w, h))
-	for y := range h {
-		for x := range w {
-			dst.SetGray(x, y, color.Gray{Y: 255})
+
+	// Light-biased quantization palette. Pure black is retained for the darkest
+	// details, while most pixels are pushed toward paper white.
+	palette := [...]float64{255, 224, 176, 64}
+	errCurr := make([]float64, w+2)
+	errNext := make([]float64, w+2)
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			r, g, b, _ := src.At(bounds.Min.X+x, bounds.Min.Y+y).RGBA()
+			lum := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 257.0
+			v := clamp(lum+errCurr[x+1], 0, 255)
+			q := nearest(v, palette[:])
+			dst.SetGray(x, y, color.Gray{Y: uint8(q)})
+
+			e := v - q
+			errCurr[x+2] += e * 7 / 16
+			errNext[x] += e * 3 / 16
+			errNext[x+1] += e * 5 / 16
+			errNext[x+2] += e * 1 / 16
 		}
-	}
-
-	maxRadius := float64(gridSize) / 2.0
-
-	for gy := 0; gy < h; gy += gridSize {
-		for gx := 0; gx < w; gx += gridSize {
-			var total float64
-			var count int
-			for dy := 0; dy < gridSize && gy+dy < h; dy++ {
-				for dx := 0; dx < gridSize && gx+dx < w; dx++ {
-					r, g, b, _ := src.At(bounds.Min.X+gx+dx, bounds.Min.Y+gy+dy).RGBA()
-					lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
-					total += lum / 65535.0
-					count++
-				}
-			}
-
-			darkness := 1.0 - total/float64(count)
-			if darkness < 0.01 {
-				continue
-			}
-			radius := maxRadius * math.Sqrt(darkness)
-
-			cx := float64(gx) + maxRadius
-			cy := float64(gy) + maxRadius
-			r2 := radius * radius
-
-			for dy := -int(maxRadius) - 1; dy <= int(maxRadius)+1; dy++ {
-				for dx := -int(maxRadius) - 1; dx <= int(maxRadius)+1; dx++ {
-					px := int(cx) + dx
-					py := int(cy) + dy
-					if px < 0 || px >= w || py < 0 || py >= h {
-						continue
-					}
-					if float64(dx)*float64(dx)+float64(dy)*float64(dy) <= r2 {
-						dst.SetGray(px, py, color.Gray{Y: 0})
-					}
-				}
-			}
-		}
+		errCurr, errNext = errNext, errCurr
+		clear(errNext)
 	}
 
 	return dst
+}
+
+func nearest(v float64, palette []float64) float64 {
+	best := palette[0]
+	bestDistance := abs(v - best)
+	for _, candidate := range palette[1:] {
+		distance := abs(v - candidate)
+		if distance < bestDistance {
+			best = candidate
+			bestDistance = distance
+		}
+	}
+	return best
+}
+
+func clamp(v, min, max float64) float64 {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+
+func abs(v float64) float64 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
